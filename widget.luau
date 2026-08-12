@@ -78,6 +78,16 @@ local function sizeFor(entry)
 	return sizeEmpty
 end
 
+-- Animated pill sizes.
+
+local ANIM_INTERVAL_MS = 16   -- ~60fps while animating
+local ANIM_IDLE_MS = 250      -- slow tick once settled (keeps orientation checks alive)
+local ANIM_EASE = 0.28        -- fraction of the remaining distance closed per tick
+local ANIM_SNAP_EPSILON = 0.3 -- px distance below which we snap to the target
+
+local pillAnim = {}    -- [idxStr] = { size = <current eased size> }
+local isAnimating = false
+
 -- Workspace indices to render, per workspace_display_mode:
 --   all             - every workspace from 1..workspace_count
 --   active_occupied - only occupied, focused, or urgent workspaces
@@ -162,12 +172,28 @@ local function render(vertical)
 	local container = vertical and ui.column or ui.row
 	local pill = vertical and ui.column or ui.row
 	local children = {}
+	local stillAnimating = false
+	local seen = {}
 
 	for _, idx in ipairs(visibleIndices()) do
 		local idxStr = tostring(idx)
+		seen[idxStr] = true
 		local entry = entryFor(idxStr)
 		local glyphOrPath = iconFor(entry)
-		local size = sizeFor(entry)
+		local targetSize = sizeFor(entry)
+
+		local a = pillAnim[idxStr]
+		if not a then
+			a = { size = targetSize }
+			pillAnim[idxStr] = a
+		end
+		if math.abs(targetSize - a.size) > ANIM_SNAP_EPSILON then
+			a.size = a.size + (targetSize - a.size) * ANIM_EASE
+			stillAnimating = true
+		else
+			a.size = targetSize
+		end
+		local size = a.size
 
 		-- "ghost" = transparent, bare icon. "fill" = colored pill behind it.
 		local style, color
@@ -217,6 +243,21 @@ local function render(vertical)
 		)
 	end
 
+	-- Drop animation state for workspaces no longer rendered
+	for idxStr in pairs(pillAnim) do
+		if not seen[idxStr] then
+			pillAnim[idxStr] = nil
+		end
+	end
+
+	if stillAnimating and not isAnimating then
+		isAnimating = true
+		noctalia.setUpdateInterval(ANIM_INTERVAL_MS)
+	elseif not stillAnimating and isAnimating then
+		isAnimating = false
+		noctalia.setUpdateInterval(ANIM_IDLE_MS)
+	end
+
 	barWidget.render(container({ gap = 6, align = "center" }, children))
 end
 
@@ -229,6 +270,8 @@ function update()
 	local vertical = barWidget.isVertical()
 	if vertical ~= renderedVertical then
 		render(vertical)
+	elseif isAnimating then
+		render(renderedVertical)
 	end
 end
 
