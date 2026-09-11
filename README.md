@@ -90,11 +90,14 @@ or add it to your bar config manually (see Usage above).
 | Focused / Urgent / Occupied / Empty pill background | select | `fill` / `fill` / `ghost` / `ghost` | `fill` (colored pill behind the icon) or `ghost` (bare icon, no background at all) |
 | Focused / Urgent / Occupied / Empty pill color | color | `primary` / `error` / `secondary` / `surface_variant` | Fill color, used when the matching pill background is `fill`. Accepts a palette role, a role with alpha (`primary/0.6`), or a hex color (`#rrggbbaa`) |
 
-## IPC and Notes
+## IPC
 
 - **Compositor:** shells out to `hyprctl -j workspaces/activeworkspace/clients/monitors`
   on Hyprland, or `niri msg --json workspaces/windows/event-stream` on Niri,
   to build workspace state. No other IPC surface is used.
+
+## Notes
+
 - **Process:** spawns `hyprctl`/`niri msg` on a timer and on compositor
   events, `socat` for the Hyprland event socket (optional), and
   `magick`/`convert`/`identify` once per distinct gif icon file (optional,
