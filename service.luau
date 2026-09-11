@@ -49,16 +49,28 @@ local function detectCompositor()
 	return nil
 end
 
--- Trims a window title/class down to something short enough for a tooltip line.
+-- Trims a window title/class down to something short enough for a tooltip
+-- line. Backs the cut point off byte-by-byte while it lands mid-way through
+-- a multi-byte UTF-8 sequence (a continuation byte, 0x80-0xBF), since titles
+-- routinely contain non-ASCII text (accented names, CJK, emoji) and a raw
+-- byte cut would otherwise emit an invalid, mangled trailing character.
 local MAX_TOOLTIP_LABEL_LEN = 24
 local function shortLabel(s)
 	if type(s) ~= "string" or s == "" then
 		return nil
 	end
-	if #s > MAX_TOOLTIP_LABEL_LEN then
-		return s:sub(1, MAX_TOOLTIP_LABEL_LEN - 1) .. "…"
+	if #s <= MAX_TOOLTIP_LABEL_LEN then
+		return s
 	end
-	return s
+	local cut = MAX_TOOLTIP_LABEL_LEN - 1
+	while cut > 0 do
+		local b = s:byte(cut + 1)
+		if not b or b < 0x80 or b >= 0xC0 then
+			break
+		end
+		cut = cut - 1
+	end
+	return s:sub(1, cut) .. "…"
 end
 
 -- Hyprland
@@ -246,19 +258,43 @@ local function publishNiri(list, windows)
 		end
 	end
 
+	-- `idx` is a workspace's position within its OWN output's workspace
+	-- list, not a globally unique id - niri restarts idx at 1 on every
+	-- monitor, so with more than one output two different workspaces can
+	-- legitimately share the same idx. Merge (rather than overwrite) any
+	-- entries that land on the same published key, so one monitor's
+	-- workspace state can't silently clobber another's.
 	local out = {}
 	for _, ws in ipairs(list) do
-		local idx = ws.idx or ws.id
-		out[tostring(idx)] = {
-			-- is_active = active on its own monitor (what we want here).
-			-- is_focused = the single globally-focused workspace across
-			-- every monitor - deliberately NOT used for `focused` below.
-			focused = ws.is_active == true,
-			urgent = ws.is_urgent == true,
-			occupied = ws.active_window_id ~= nil,
-			output = ws.output,
-			windows = windowsByWs[ws.id],
-		}
+		local idxStr = tostring(ws.idx or ws.id)
+		local wsWindows = windowsByWs[ws.id]
+
+		local existing = out[idxStr]
+		if not existing then
+			out[idxStr] = {
+				-- is_active = active on its own monitor (what we want here).
+				-- is_focused = the single globally-focused workspace across
+				-- every monitor - deliberately NOT used for `focused` below.
+				focused = ws.is_active == true,
+				urgent = ws.is_urgent == true,
+				occupied = ws.active_window_id ~= nil,
+				output = ws.output,
+				windows = wsWindows,
+			}
+		else
+			existing.focused = existing.focused or (ws.is_active == true)
+			existing.urgent = existing.urgent or (ws.is_urgent == true)
+			existing.occupied = existing.occupied or (ws.active_window_id ~= nil)
+			if ws.is_active then
+				existing.output = ws.output -- prefer the currently-active monitor's identity
+			end
+			if wsWindows then
+				existing.windows = existing.windows or {}
+				for _, w in ipairs(wsWindows) do
+					table.insert(existing.windows, w)
+				end
+			end
+		end
 	end
 	loggedError = false
 	noctalia.state.set(STATE_KEY, out)
