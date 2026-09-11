@@ -16,7 +16,7 @@ Port from [Lunar Workspaces V4](https://github.com/Niko-Cloud/Lunar-Workspace-No
 ## Features
 
 - 🌕 🌟 🌗 🌙 Separate icon, size, and pill color per workspace state
-  (focused / urgent / occupied / empty) — emoji, static image, or animated gif
+  (focused / urgent / occupied / empty): emoji, static image, or animated gif
 - Optional smooth size-easing animation on focus/state changes
   (`enable_animation`)
 - Fill or ghost pill style per state, with per-state custom colors
@@ -47,14 +47,13 @@ the next/previous visible workspace.
 - [Noctalia](https://github.com/noctalia-dev/noctalia) 5.0.0+ with plugin
   support (`plugin_api` 12+)
 - Hyprland or Niri
-- [`socat`](https://linux.die.net/man/1/socat) — optional. Used for instant
+- [`socat`](https://linux.die.net/man/1/socat), optional. Used for instant
   Hyprland IPC updates; without it the widget still works via periodic
   polling (60s resync plus event-driven refresh on Niri, which doesn't need
   socat).
-- ImageMagick (`magick`, or the legacy `convert`/`identify` pair) —
-  optional, only needed if an icon setting points at a `.gif`. Without it,
-  a gif icon still renders, just as a static first frame instead of
-  animating.
+- ImageMagick (`magick`, or the legacy `convert`/`identify` pair), optional,
+  only needed if an icon setting points at a `.gif`. Without it, a gif icon
+  still renders, just as a static first frame instead of animating.
 
 ## Installation
 
@@ -83,8 +82,8 @@ or add it to your bar config manually (see Usage above).
 | Animate transitions | bool | `true` | Smoothly ease icon size on focus/state changes instead of snapping instantly |
 | Focused / Urgent / Occupied / Empty icon | file | 🌕 / 🌟 / 🌗 / 🌙 | Emoji, or an absolute path to an image or gif. Animated gifs need ImageMagick installed |
 | Focused / Urgent / Occupied / Empty size | int (8-64) | `22` / `20` / `18` / `16` | Icon size in pixels per state |
-| Focused / Urgent / Occupied / Empty pill background | select | `fill` / `fill` / `ghost` / `ghost` | `fill` (colored pill behind the icon) or `ghost` (bare icon only) |
-| Focused / Urgent / Occupied / Empty pill color | color | `primary` / `error` / `secondary` / `surface_variant` | Fill color, shown when the matching pill background is `fill`. Accepts a palette role, a role with alpha (`primary/0.6`), or a hex color (`#rrggbbaa`) |
+| Focused / Urgent / Occupied / Empty pill background | select | `fill` / `fill` / `ghost` / `ghost` | `fill` (colored pill behind the icon) or `ghost` (bare icon, no background at all) |
+| Focused / Urgent / Occupied / Empty pill color | color | `primary` / `error` / `secondary` / `surface_variant` | Fill color, used when the matching pill background is `fill`. Accepts a palette role, a role with alpha (`primary/0.6`), or a hex color (`#rrggbbaa`) |
 
 ## IPC and Notes
 
