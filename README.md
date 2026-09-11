@@ -14,7 +14,7 @@ Port from [Lunar Workspaces V4](https://github.com/Niko-Cloud/Lunar-Workspace-No
 | Widget | `lunar_workspaces` (bar widget) |
 
 ## Video
-![lunar-workspaces](https://github.com/user-attachments/assets/447a4d85-3461-405b-be47-d099e680ced5)
+https://github.com/user-attachments/assets/447a4d85-3461-405b-be47-d099e680ced5
 
 ## Features
 
