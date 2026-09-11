@@ -7,11 +7,16 @@ through workspaces. Supports **Hyprland** and **Niri**, auto-detected.
 
 Port from [Lunar Workspaces V4](https://github.com/Niko-Cloud/Lunar-Workspace-Noctalia-Plugin).
 
+## Plugin
+
 | Field | Value |
 | --- | --- |
 | ID | `yuki/lunar-workspaces` |
-| Service | `workspace-state` (background: watches the compositor, publishes workspace state) |
-| Widget | `lunar_workspaces` (bar widget) |
+| Entries | Bar widget: `lunar_workspaces`; service: `workspace-state` |
+
+- Service `workspace-state` runs in the background: watches the compositor
+  and publishes workspace state.
+- Widget `lunar_workspaces` is the bar widget.
 
 ## Features
 
