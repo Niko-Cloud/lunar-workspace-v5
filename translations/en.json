@@ -26,19 +26,19 @@
     },
     "icon_focused": {
       "label": "Focused icon",
-      "description": "Emoji or absolute path to an image/gif for the focused workspace. Default: 🌕 Full moon."
+      "description": "Emoji or absolute path to an image/gif for the focused workspace. Animated gifs need ImageMagick installed. Default: 🌕 Full moon."
     },
     "icon_urgent": {
       "label": "Urgent icon",
-      "description": "Emoji or absolute path to an image/gif for a workspace with urgent activity. Default: 🌟 Star."
+      "description": "Emoji or absolute path to an image/gif for a workspace with urgent activity. Animated gifs need ImageMagick installed. Default: 🌟 Star."
     },
     "icon_occupied": {
       "label": "Occupied icon",
-      "description": "Emoji or absolute path to an image/gif for an occupied, unfocused workspace. Default: 🌗 Half moon."
+      "description": "Emoji or absolute path to an image/gif for an occupied, unfocused workspace. Animated gifs need ImageMagick installed. Default: 🌗 Half moon."
     },
     "icon_empty": {
       "label": "Empty icon",
-      "description": "Emoji or absolute path to an image/gif for an empty workspace. Default: 🌙 Crescent moon."
+      "description": "Emoji or absolute path to an image/gif for an empty workspace. Animated gifs need ImageMagick installed. Default: 🌙 Crescent moon."
     },
     "size_focused": {
       "label": "Focused size",

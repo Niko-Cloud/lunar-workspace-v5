@@ -6,6 +6,11 @@ local STATE_KEY = "lunar_workspaces"
 
 local wsState = noctalia.state.get(STATE_KEY) or {}
 local renderedVertical = nil
+-- Forward-declared: gif frame extraction finishes asynchronously (outside
+-- any update()/state-change tick), and needs to trigger a render itself to
+-- pick up the now-ready frames instead of leaving the static fallback
+-- showing until something unrelated happens to re-render next.
+local render
 
 local compositorSetting = noctalia.getConfig("compositor") or "auto"
 local displayMode = noctalia.getConfig("workspace_display_mode") or "all"
@@ -64,6 +69,142 @@ local function imagePathFor(v)
 	return (v:gsub("^file://", ""))
 end
 
+-- Animated GIF icons.
+--
+-- ui.image only ever shows a gif's first frame - there's no AnimatedImage
+-- equivalent in the plugin sandbox (see UiImageProps in noctalia.d.luau).
+-- So a .gif icon is pre-split into PNG frames with ImageMagick once, cached
+-- under the plugin's data dir, and the frames are hand-cycled on a timer -
+-- the same trick the official bongocat plugin uses with font glyphs instead
+-- of image files.
+local GIF_TICK_MS = 50
+local GIF_DEFAULT_FRAME_MS = 100 -- GIF spec: a 0 delay is conventionally ~100ms
+
+local gifStartMs = noctalia.nowMs()
+local gifMagickBinary = nil -- nil = unchecked, false = unavailable, else "magick"|"convert"
+local gifWarnedNoMagick = false
+-- [resolvedPath] = "pending" | "unavailable" | { frames = {path,...}, cum = {ms,...}, total = ms }
+local gifCache = {}
+
+local function gifBinary()
+	if gifMagickBinary == nil then
+		if noctalia.commandExists("magick") then
+			gifMagickBinary = "magick"
+		elseif noctalia.commandExists("convert") then
+			gifMagickBinary = "convert"
+		else
+			gifMagickBinary = false
+		end
+	end
+	return gifMagickBinary
+end
+
+-- Single-quotes a value for /bin/sh: close the quote, emit an escaped
+-- literal quote, reopen it.
+local function shellQuote(s)
+	return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+
+local function djb2Hex(s)
+	local h = 5381
+	for i = 1, #s do
+		h = (h * 33 + s:byte(i)) % 4294967296
+	end
+	return string.format("%08x", h)
+end
+
+local function gifCacheDirFor(path)
+	local dataDir = noctalia.pluginDataDir()
+	if not dataDir then
+		return nil
+	end
+	-- Folds the file's mtime into the cache key so replacing the gif at the
+	-- same path re-extracts instead of serving stale frames.
+	local info = noctalia.fileInfo(path)
+	local mtime = info and info.mtime or 0
+	return dataDir .. "/gif-frames/" .. djb2Hex(path) .. "-" .. tostring(mtime)
+end
+
+local function startGifExtraction(path)
+	local binary = gifBinary()
+	if not binary then
+		if not gifWarnedNoMagick then
+			gifWarnedNoMagick = true
+			noctalia.log("Lunar Workspaces: ImageMagick (magick/convert) not found; gif icons will show as a static image")
+		end
+		gifCache[path] = "unavailable"
+		return
+	end
+
+	local cacheDir = gifCacheDirFor(path)
+	if not cacheDir then
+		gifCache[path] = "unavailable"
+		return
+	end
+
+	gifCache[path] = "pending"
+
+	local qPath = shellQuote(path)
+	local identifyBin = (binary == "magick") and "magick identify" or "identify"
+	local cmd = "mkdir -p " .. shellQuote(cacheDir)
+		.. " && " .. binary .. " " .. qPath .. " -coalesce " .. shellQuote(cacheDir .. "/frame-%04d.png")
+		.. " && " .. identifyBin .. " -format '%T ' " .. qPath
+
+	noctalia.runAsync(cmd, function(result)
+		if result.exitCode ~= 0 then
+			gifCache[path] = "unavailable"
+			return
+		end
+
+		local delaysMs = {}
+		for token in result.stdout:gmatch("%d+") do
+			local centiseconds = tonumber(token) or 0
+			table.insert(delaysMs, (centiseconds > 0 and centiseconds * 10) or GIF_DEFAULT_FRAME_MS)
+		end
+
+		if #delaysMs <= 1 then
+			-- No frames parsed, or genuinely a single-frame gif: nothing to
+			-- cycle, so leave it to render as a plain static image.
+			gifCache[path] = "unavailable"
+			return
+		end
+
+		local frames, cum, total = {}, {}, 0
+		for i, ms in ipairs(delaysMs) do
+			frames[i] = cacheDir .. "/frame-" .. string.format("%04d", i - 1) .. ".png"
+			total = total + ms
+			cum[i] = total
+		end
+		gifCache[path] = { frames = frames, cum = cum, total = total }
+
+		-- Extraction finishes off the render cycle that kicked it off, so
+		-- nothing else would otherwise re-render to pick up the new frames.
+		render(renderedVertical)
+	end, 15000)
+end
+
+-- Returns (displayPath, isAnimating) for a .gif icon path at the given
+-- render-pass timestamp. Kicks off extraction on first sight; until frames
+-- are ready (or if extraction isn't possible) the caller falls back to the
+-- raw gif path, which still renders as a static first-frame image.
+local function resolveGifFrame(path, nowMs)
+	local cached = gifCache[path]
+	if cached == nil then
+		startGifExtraction(path)
+		cached = gifCache[path]
+	end
+	if type(cached) ~= "table" then
+		return nil, false
+	end
+	local elapsed = (nowMs - gifStartMs) % cached.total
+	for i, cutoff in ipairs(cached.cum) do
+		if elapsed < cutoff then
+			return cached.frames[i], true
+		end
+	end
+	return cached.frames[#cached.frames], true
+end
+
 local function entryFor(idxStr)
 	return wsState[idxStr] or { focused = false, urgent = false, occupied = false }
 end
@@ -98,7 +239,7 @@ local ANIM_EASE = 0.28        -- fraction of the remaining distance closed per t
 local ANIM_SNAP_EPSILON = 0.3 -- px distance below which we snap to the target
 
 local pillAnim = {}    -- [idxStr] = { size = <current eased size> }
-local isAnimating = false
+local currentIntervalMs = nil -- nil until the first render() decides a tick rate
 
 -- Workspace indices to render, per workspace_display_mode:
 --   all             - every workspace from 1..workspace_count
@@ -179,13 +320,15 @@ local function switchWorkspace(idx)
 end
 
 -- Builds and renders the row/column of workspace pills.
-local function render(vertical)
+function render(vertical)
 	renderedVertical = vertical
 	local container = vertical and ui.column or ui.row
 	local pill = vertical and ui.column or ui.row
 	local children = {}
 	local stillAnimating = false
+	local sawAnimatedGif = false
 	local seen = {}
+	local nowMs = noctalia.nowMs()
 
 	for _, idx in ipairs(visibleIndices()) do
 		local idxStr = tostring(idx)
@@ -230,11 +373,22 @@ local function render(vertical)
 
 		local inner
 		if isImagePath(glyphOrPath) then
-			-- `key` keeps this node's identity stable across re-renders so
-			-- image playback isn't restarted on every state update.
+			local resolved = noctalia.expandPath(imagePathFor(glyphOrPath))
+			local displayPath = resolved
+			if resolved:lower():match("%.gif$") then
+				local framePath, animating = resolveGifFrame(resolved, nowMs)
+				if animating then
+					displayPath = framePath
+					sawAnimatedGif = true
+				end
+			end
+			-- `key` keeps this node's identity stable across re-renders so a
+			-- static image isn't reloaded on every state update; an animated
+			-- gif's frame path changing under the same key is exactly what
+			-- drives its playback.
 			inner = ui.image({
 				key = "icon-" .. idxStr,
-				path = imagePathFor(glyphOrPath),
+				path = displayPath,
 				width = size,
 				height = size,
 			})
@@ -264,12 +418,15 @@ local function render(vertical)
 		end
 	end
 
-	if stillAnimating and not isAnimating then
-		isAnimating = true
-		noctalia.setUpdateInterval(ANIM_INTERVAL_MS)
-	elseif not stillAnimating and isAnimating then
-		isAnimating = false
-		noctalia.setUpdateInterval(ANIM_IDLE_MS)
+	local desiredIntervalMs = ANIM_IDLE_MS
+	if stillAnimating then
+		desiredIntervalMs = ANIM_INTERVAL_MS
+	elseif sawAnimatedGif then
+		desiredIntervalMs = GIF_TICK_MS
+	end
+	if desiredIntervalMs ~= currentIntervalMs then
+		currentIntervalMs = desiredIntervalMs
+		noctalia.setUpdateInterval(desiredIntervalMs)
 	end
 
 	barWidget.render(container({ gap = 6, align = "center" }, children))
@@ -284,7 +441,7 @@ function update()
 	local vertical = barWidget.isVertical()
 	if vertical ~= renderedVertical then
 		render(vertical)
-	elseif isAnimating then
+	elseif currentIntervalMs ~= nil and currentIntervalMs ~= ANIM_IDLE_MS then
 		render(renderedVertical)
 	end
 end
