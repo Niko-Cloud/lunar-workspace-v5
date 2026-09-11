@@ -1,6 +1,6 @@
 {
   "plugin_name": "Lunar Workspaces",
-  "plugin_description": "Ranni the Witch themed workspace indicator.",
+  "plugin_description": "Change workspace indicator with per-state custom icons, for Hyprland and Niri.",
   "settings": {
     "compositor": {
       "label": "Compositor",
