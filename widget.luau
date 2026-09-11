@@ -11,6 +11,18 @@ local compositorSetting = noctalia.getConfig("compositor") or "auto"
 local displayMode = noctalia.getConfig("workspace_display_mode") or "all"
 local workspaceCount = tonumber(noctalia.getConfig("workspace_count")) or 9
 
+-- Bool settings must not use `or true`: that would coerce an explicit
+-- `false` back to `true`. Only nil (unset) should fall back to the default.
+local function getBoolConfig(key, default)
+	local v = noctalia.getConfig(key)
+	if v == nil then
+		return default
+	end
+	return v
+end
+
+local enableAnimation = getBoolConfig("enable_animation", true)
+
 local iconFocused = noctalia.getConfig("icon_focused") or "🌕"
 local iconUrgent = noctalia.getConfig("icon_urgent") or "🌟"
 local iconOccupied = noctalia.getConfig("icon_occupied") or "🌗"
@@ -187,7 +199,9 @@ local function render(vertical)
 			a = { size = targetSize }
 			pillAnim[idxStr] = a
 		end
-		if math.abs(targetSize - a.size) > ANIM_SNAP_EPSILON then
+		if not enableAnimation then
+			a.size = targetSize
+		elseif math.abs(targetSize - a.size) > ANIM_SNAP_EPSILON then
 			a.size = a.size + (targetSize - a.size) * ANIM_EASE
 			stillAnimating = true
 		else
@@ -279,6 +293,7 @@ function onConfigChanged()
 	compositorSetting = noctalia.getConfig("compositor") or "auto"
 	displayMode = noctalia.getConfig("workspace_display_mode") or "all"
 	workspaceCount = tonumber(noctalia.getConfig("workspace_count")) or 9
+	enableAnimation = getBoolConfig("enable_animation", true)
 	iconFocused = noctalia.getConfig("icon_focused") or "🌕"
 	iconUrgent = noctalia.getConfig("icon_urgent") or "🌟"
 	iconOccupied = noctalia.getConfig("icon_occupied") or "🌗"

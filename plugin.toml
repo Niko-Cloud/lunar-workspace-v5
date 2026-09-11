@@ -4,6 +4,7 @@ version = "1.0.0"
 plugin_api = 3
 author = "yuki"
 license = "MIT"
+min_noctalia = "5.0.0"
 description = "change workspace indicator with icon that can be customized."
 
 tags = ["bar", "indicator", "workspaces", "hyprland", "niri"]
@@ -50,6 +51,13 @@ entry = "widget.luau"
   default         = 9
   min             = 1
   max             = 20
+
+  [[widget.setting]]
+  key             = "enable_animation"
+  type            = "bool"
+  label_key       = "settings.enable_animation.label"
+  description_key = "settings.enable_animation.description"
+  default         = true
 
   [[widget.setting]]
   key             = "icon_focused"

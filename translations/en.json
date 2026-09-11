@@ -20,6 +20,10 @@
       "label": "Workspace count",
       "description": "How many workspace slots to check (1 to this number)."
     },
+    "enable_animation": {
+      "label": "Animate transitions",
+      "description": "Smoothly ease icon size on focus/state changes instead of snapping instantly."
+    },
     "icon_focused": {
       "label": "Focused icon",
       "description": "Emoji or absolute path to an image/gif for the focused workspace. Default: 🌕 Full moon."
