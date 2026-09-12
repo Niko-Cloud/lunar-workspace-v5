@@ -7,6 +7,11 @@ through workspaces. Supports **Hyprland** and **Niri**, auto-detected.
 
 Port from [Lunar Workspaces V4](https://github.com/Niko-Cloud/Lunar-Workspace-Noctalia-Plugin).
 
+## !!IMPORTANT!!
+Already merged into the official community plugins of noctalia, you can check [HERE](https://github.com/noctalia-dev/community-plugins) for the plugins
+and search 'lunar-workspaces'
+This repository gonna be test and development repository before it getting updated into the community plugins
+
 | Field | Value |
 | --- | --- |
 | ID | `yuki/lunar-workspaces` |
