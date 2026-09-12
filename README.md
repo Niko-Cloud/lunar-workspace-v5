@@ -1,3 +1,8 @@
+## !!IMPORTANT!!
+Already merged into the official community plugins of noctalia, you can check [HERE](https://github.com/noctalia-dev/community-plugins) for the plugins
+and search 'lunar-workspaces'
+This repository gonna be test and development repository before it getting updated into the community plugins
+
 # Lunar Workspaces (Noctalia v5)
 
 A workspace indicator widget for [Noctalia](https://github.com/noctalia-dev/noctalia)
@@ -17,6 +22,9 @@ Port from [Lunar Workspaces V4](https://github.com/Niko-Cloud/Lunar-Workspace-No
 - Service `workspace-state` runs in the background: watches the compositor
   and publishes workspace state.
 - Widget `lunar_workspaces` is the bar widget.
+
+## Video
+https://github.com/user-attachments/assets/f07b5442-f5b2-4e20-9cf5-ef7f5f216e4f
 
 ## Features
 
